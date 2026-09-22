@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pip Desk — Live Signal Bot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1319; --panel:#171D26; --panel-2:#1D242F; --line:#2A323F;
+    --text:#E7EAEE; --muted:#8A94A3;
+    --green:#3ECF8E; --red:#E5584F; --amber:#E8A33D; --grey:#7C8794;
+    --font-ui:'Space Grotesk',system-ui,sans-serif;
+    --font-num:'IBM Plex Mono',ui-monospace,monospace;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;}
+  html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);}
+  body{
+    height:100%;margin:0;background:var(--bg);color:var(--text);
+    font-family:var(--font-ui);-webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;
+  }
+  header{
+    padding:16px 18px 12px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    position:sticky;top:0;background:var(--bg);z-index:5;
+    padding-top:calc(16px + env(safe-area-inset-top,0px));
+  }
+  .brand{display:flex;flex-direction:column;gap:2px;}
+  .brand .name{font-weight:700;font-size:17px;letter-spacing:.2px;}
+  .brand .sub{font-size:11.5px;color:var(--muted);}
+  .status-pill{
+    font-family:var(--font-num);font-size:12px;padding:5px 10px;border-radius:20px;
+    border:1px solid var(--line);color:var(--muted);white-space:nowrap;
+  }
+  .status-pill.live{color:var(--green);border-color:rgba(62,207,142,.35);background:rgba(62,207,142,.08);}
+  .status-pill.stopped{color:var(--red);border-color:rgba(229,88,79,.35);background:rgba(229,88,79,.08);}
+  main{flex:1;overflow-y:auto;padding:16px 16px 110px;max-width:520px;width:100%;margin:0 auto;}
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:16px;margin-bottom:14px;
+  }
+  .price-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2px;}
+  select.symbol{
+    background:transparent;border:none;color:var(--text);font-family:var(--font-ui);
+    font-weight:600;font-size:15px;appearance:none;-webkit-appearance:none;
+    padding-right:16px;
+  }
+  .price-wrap{text-align:right;}
+  .price{font-family:var(--font-num);font-size:26px;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums;}
+  .change{font-family:var(--font-num);font-size:12.5px;}
+  .change.pos{color:var(--green);} .change.neg{color:var(--red);}
+  .signal-card{padding:20px 16px;}
+  .signal-dir{font-size:34px;font-weight:700;letter-spacing:.5px;text-align:center;margin:4px 0 2px;}
+  .signal-dir.call{color:var(--green);} .signal-dir.put{color:var(--red);} .signal-dir.wait{color:var(--grey);}
+  .signal-score{text-align:center;color:var(--muted);font-size:12.5px;font-family:var(--font-num);margin-bottom:14px;}
+  .metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .metric{background:var(--panel-2);border-radius:10px;padding:9px 10px;}
+  .metric .k{font-size:10.5px;color:var(--muted);margin-bottom:3px;}
+  .metric .v{font-family:var(--font-num);font-size:14px;}
+  .trend-up{color:var(--green);} .trend-down{color:var(--red);}
+  .stake-row{display:flex;justify-content:space-between;font-size:13px;padding:10px 2px 0;color:var(--muted);}
+  .stake-row span:last-child{font-family:var(--font-num);color:var(--amber);}
+  .stake-row.cap span:last-child{color:var(--muted);}
+  h3{font-size:12.5px;text-transform:none;color:var(--muted);margin:0 0 10px;font-weight:600;}
+  .log-item{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;gap:8px;
+  }
+  .log-item:last-child{border-bottom:none;}
+  .log-left{display:flex;flex-direction:column;gap:2px;}
+  .log-tag{font-family:var(--font-num);font-size:11px;padding:2px 7px;border-radius:5px;width:fit-content;font-weight:600;}
+  .log-tag.call{background:rgba(62,207,142,.14);color:var(--green);}
+  .log-tag.put{background:rgba(229,88,79,.14);color:var(--red);}
+  .log-time{color:var(--muted);font-size:11px;}
+  .log-result{font-family:var(--font-num);font-weight:600;text-align:right;}
+  .log-result.win{color:var(--green);} .log-result.loss{color:var(--red);} .log-result.pending{color:var(--muted);}
+  .empty-log{color:var(--muted);font-size:13px;padding:6px 0;}
+  details.settings{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;}
+  details.settings summary{cursor:pointer;font-weight:600;font-size:13.5px;list-style:none;display:flex;justify-content:space-between;align-items:center;}
+  details.settings summary::-webkit-details-marker{display:none;}
+  details.settings summary .arrow{transition:transform .18s ease;color:var(--muted);}
+  details[open] summary .arrow{transform:rotate(180deg);}
+  .field{margin-top:14px;}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;}
+  .field input, .field select{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
+    color:var(--text);font-family:var(--font-num);font-size:13.5px;padding:9px 10px;
+  }
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5;}
+  .hint a{color:var(--amber);}
+  footer{
+    position:fixed;bottom:0;left:0;right:0;padding:12px 16px;
+    padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));
+    background:linear-gradient(to top, var(--bg) 65%, transparent);
+    display:flex;justify-content:center;
+  }
+  .bot-btn{
+    width:100%;max-width:520px;padding:14px;border-radius:12px;border:none;
+    font-family:var(--font-ui);font-weight:700;font-size:15px;letter-spacing:.3px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .bot-btn.off{background:var(--green);color:#08221A;}
+  .bot-btn.on{background:var(--panel-2);color:var(--red);border:1px solid rgba(229,88,79,.4);}
+  .bot-btn .dot{width:8px;height:8px;border-radius:50%;background:currentColor;}
+  .banner{
+    font-size:12.5px;padding:10px 12px;border-radius:10px;margin-bottom:14px;
+    background:rgba(232,163,61,.1);border:1px solid rgba(232,163,61,.3);color:var(--amber);
+  }
+  ::-webkit-scrollbar{width:0;height:0;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="name">Pip Desk</div>
+    <div class="sub">Live signal · paper trading only</div>
+  </div>
+  <div class="status-pill stopped" id="statusPill">BOT OFF</div>
+</header>
+
+<main>
+  <div id="apiBanner" class="banner" style="display:none;"></div>
+
+  <div class="card">
+    <div class="price-row">
+      <select class="symbol" id="symbolSelect">
+        <option value="EUR/USD">EUR/USD</option>
+        <option value="GBP/USD">GBP/USD</option>
+        <option value="USD/JPY">USD/JPY</option>
+        <option value="AUD/USD">AUD/USD</option>
+        <option value="USD/CHF">USD/CHF</option>
+        <option value="USD/CAD">USD/CAD</option>
+        <option value="NZD/USD">NZD/USD</option>
+        <option value="EUR/GBP">EUR/GBP</option>
+      </select>
+      <div class="price-wrap">
+        <div class="price" id="priceVal">—</div>
+        <div class="change" id="priceChange">waiting for feed</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card signal-card">
+    <div class="signal-dir wait" id="signalDir">WAIT</div>
+    <div class="signal-score" id="signalScore">score — / 3 · —</div>
+    <div class="metrics">
+      <div class="metric"><div class="k">TREND</div><div class="v" id="mTrend">—</div></div>
+      <div class="metric"><div class="k">RSI (14)</div><div class="v" id="mRsi">—</div></div>
+      <div class="metric"><div class="k">MACD HIST</div><div class="v" id="mMacd">—</div></div>
+    </div>
+    <div class="stake-row"><span>Stake this trade</span><span id="stakeVal">$0.00</span></div>
+    <div class="stake-row cap"><span>Daily loss cap</span><span id="capVal">$0.00 / $0.00</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Trade log</h3>
+    <div id="tradeLog"><div class="empty-log">No trades yet. Start the bot to begin logging paper trades.</div></div>
+  </div>
+
+  <details class="settings" id="settingsPanel">
+    <summary>Settings <span class="arrow">▾</span></summary>
+
+    <div class="field">
+      <label>Twelve Data API key</label>
+      <input type="text" id="apiKey" placeholder="paste your free API key" autocomplete="off">
+      <div class="hint">Free key at <a href="https://twelvedata.com" target="_blank" rel="noopener">twelvedata.com</a> (free tier: 800 requests/day, 8/min). Stored only on this device.</div>
+    </div>
+
+    <div class="field-grid">
+      <div class="field">
+        <label>Signal timeframe</label>
+        <select id="tfSelect">
+          <option value="1min">1 min</option>
+          <option value="5min" selected>5 min</option>
+          <option value="15min">15 min</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Poll every (sec)</label>
+        <input type="number" id="pollSecs" value="45" min="20">
+      </div>
+    </div>
+
+    <div class="field-grid">
+      <div class="field">
+        <label>Balance ($)</label>
+        <input type="number" id="balanceIn" value="500" min="1">
+      </div>
+      <div class="field">
+        <label>Risk per trade (%)</label>
+        <input type="number" id="riskIn" value="1.5" step="0.1" min="0.1">
+      </div>
+    </div>
+
+    <div class="field-grid">
+      <div class="field">
+        <label>Max daily loss (%)</label>
+        <input type="number" id="maxLossIn" value="6" step="0.5" min="0.5">
+      </div>
+      <div class="field">
+        <label>Simulated payout (%)</label>
+        <input type="number" id="payoutIn" value="85" min="1" max="100">
+      </div>
+    </div>
+
+    <div class="hint" style="margin-top:14px;">
+      This app reads real live forex quotes from Twelve Data and runs the EMA/RSI/MACD confluence logic from your Pine scripts client-side. Trade outcomes are simulated (no broker order is ever placed) — a signal resolves after one timeframe candle by comparing entry price to the price at expiry, paid out at the rate above. Nothing here executes real money trades.
+    </div>
+  </details>
+</main>
+
+<footer>
+  <button class="bot-btn off" id="botBtn"><span class="dot"></span><span id="botBtnLabel">START BOT</span></button>
+</footer>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const statusPill = $('statusPill'), botBtn = $('botBtn'), botBtnLabel = $('botBtnLabel');
+  const apiBanner = $('apiBanner');
+  const priceVal = $('priceVal'), priceChange = $('priceChange');
+  const signalDir = $('signalDir'), signalScore = $('signalScore');
+  const mTrend = $('mTrend'), mRsi = $('mRsi'), mMacd = $('mMacd');
+  const stakeVal = $('stakeVal'), capVal = $('capVal');
+  const tradeLog = $('tradeLog');
+  const symbolSelect = $('symbolSelect'), tfSelect = $('tfSelect'), pollSecs = $('pollSecs');
+  const apiKeyInput = $('apiKey'), balanceIn = $('balanceIn'), riskIn = $('riskIn'),
+        maxLossIn = $('maxLossIn'), payoutIn = $('payoutIn'), settingsPanel = $('settingsPanel');
+
+  let running = false, pollTimer = null, lastDir = 'WAIT', lastPrice = null, prevPrice = null;
+  let balance = 500, dailyLoss = 0, dailyStartBalance = 500, pendingTrade = null, trades = [];
+
+  // ---- persist simple per-device settings ----
+  function loadSettings(){
+    try{
+      const s = JSON.parse(localStorage.getItem('pipdesk_settings') || '{}');
+      if(s.apiKey) apiKeyInput.value = s.apiKey;
+      if(s.symbol) symbolSelect.value = s.symbol;
+      if(s.tf) tfSelect.value = s.tf;
+      if(s.poll) pollSecs.value = s.poll;
+      if(s.balance) { balanceIn.value = s.balance; balance = +s.balance; dailyStartBalance = balance; }
+      if(s.risk) riskIn.value = s.risk;
+      if(s.maxLoss) maxLossIn.value = s.maxLoss;
+      if(s.payout) payoutIn.value = s.payout;
+    }catch(e){}
+  }
+  function saveSettings(){
+    try{
+      localStorage.setItem('pipdesk_settings', JSON.stringify({
+        apiKey: apiKeyInput.value, symbol: symbolSelect.value, tf: tfSelect.value,
+        poll: pollSecs.value, balance: balanceIn.value, risk: riskIn.value,
+        maxLoss: maxLossIn.value, payout: payoutIn.value
+      }));
+    }catch(e){}
+  }
+  loadSettings();
+  balance = +balanceIn.value; dailyStartBalance = balance;
+  [apiKeyInput, symbolSelect, tfSelect, pollSecs, balanceIn, riskIn, maxLossIn, payoutIn]
+    .forEach(el => el.addEventListener('change', saveSettings));
+
+  function showBanner(msg){ apiBanner.style.display='block'; apiBanner.textContent = msg; }
+  function hideBanner(){ apiBanner.style.display='none'; }
+
+  // ---- indicator math ----
+  function ema(values, length){
+    const k = 2/(length+1);
+    const out = new Array(values.length).fill(null);
+    let seed = 0;
+    for(let i=0;i<length;i++) seed += values[i];
+    seed/=length;
+    out[length-1]=seed;
+    for(let i=length;i<values.length;i++) out[i] = values[i]*k + out[i-1]*(1-k);
+    return out;
+  }
+  function rsi(values, length){
+    const out = new Array(values.length).fill(null);
+    let gains=0, losses=0;
+    for(let i=1;i<=length;i++){
+      const d = values[i]-values[i-1];
+      if(d>=0) gains+=d; else losses-=d;
+    }
+    let avgGain=gains/length, avgLoss=losses/length;
+    out[length] = avgLoss===0 ? 100 : 100 - (100/(1+avgGain/avgLoss));
+    for(let i=length+1;i<values.length;i++){
+      const d = values[i]-values[i-1];
+      const g = d>0?d:0, l = d<0?-d:0;
+      avgGain = (avgGain*(length-1)+g)/length;
+      avgLoss = (avgLoss*(length-1)+l)/length;
+      out[i] = avgLoss===0 ? 100 : 100 - (100/(1+avgGain/avgLoss));
+    }
+    return out;
+  }
+  function macd(values, fast, slow, sigLen){
+    const emaFast = ema(values, fast), emaSlow = ema(values, slow);
+    const macdLine = values.map((_,i)=> (emaFast[i]!=null && emaSlow[i]!=null) ? emaFast[i]-emaSlow[i] : null);
+    const validStart = macdLine.findIndex(v=>v!=null);
+    const compact = macdLine.slice(validStart).map(v=>v);
+    const sig = ema(compact, sigLen);
+    const sigFull = new Array(validStart).fill(null).concat(sig);
+    const hist = macdLine.map((v,i)=> (v!=null && sigFull[i]!=null) ? v-sigFull[i] : null);
+    return { macdLine, signal: sigFull, hist };
+  }
+
+  // ---- signal engine (ports the Pine Script confluence logic) ----
+  function computeSignal(closes){
+    const emaFast = ema(closes, 9), emaSlow = ema(closes, 21), rsiArr = rsi(closes, 14);
+    const { hist } = macd(closes, 12, 26, 9);
+    const i = closes.length-1;
+    const eF = emaFast[i], eS = emaSlow[i], r = rsiArr[i], h = hist[i];
+    if(eF==null||eS==null||r==null||h==null) return null;
+
+    const trendUp = eF > eS;
+    const cond1 = trendUp && r>42 && r<72;
+    const cond2 = !trendUp && r<58 && r>28;
+    const cond3 = trendUp && h>0;
+    const cond4 = !trendUp && h<0;
+    const cond5 = trendUp ? (r<70) : (r>30);
+    const score = (cond1?1:0)+(cond2?1:0)+(cond3?1:0)+(cond4?1:0)+(cond5?1:0);
+    const extreme = r>75 || r<25;
+
+    const goCall = trendUp && score>=2 && !extreme;
+    const goPut = !trendUp && score>=2 && !extreme;
+    const dir = goCall ? 'CALL' : goPut ? 'PUT' : 'WAIT';
+    return { dir, trendUp, rsi:r, hist:h, score };
+  }
+
+  // ---- data feed ----
+  async function fetchCandles(){
+    const key = apiKeyInput.value.trim();
+    if(!key){ showBanner('Add your Twelve Data API key in Settings to start the live feed.'); return null; }
+    const symbol = encodeURIComponent(symbolSelect.value);
+    const interval = tfSelect.value;
+    const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=100&apikey=${key}`;
+    try{
+      const res = await fetch(url);
+      const data = await res.json();
+      if(data.status === 'error' || !data.values){
+        showBanner(data.message || 'Feed error — check your API key or symbol.');
+        return null;
+      }
+      hideBanner();
+      return data.values.slice().reverse().map(v=>parseFloat(v.close));
+    }catch(e){
+      showBanner('Could not reach the live feed. If this is running from a hosted preview, open the downloaded file directly or host it yourself — some hosted previews block outside network calls.');
+      return null;
+    }
+  }
+
+  function fmtMoney(n){ return (n<0?'-$':'$') + Math.abs(n).toFixed(2); }
+
+  function renderPrice(price){
+    priceVal.textContent = price.toFixed(price>50?3:5);
+    if(prevPrice!=null){
+      const chg = price - prevPrice;
+      const pct = (chg/prevPrice*100).toFixed(3);
+      priceChange.textContent = (chg>=0?'+':'') + pct + '%';
+      priceChange.className = 'change ' + (chg>=0?'pos':'neg');
+    }
+  }
+
+  function renderSignal(sig){
+    signalDir.textContent = sig.dir;
+    signalDir.className = 'signal-dir ' + sig.dir.toLowerCase();
+    signalScore.textContent = `score ${sig.score} / 3 · ${sig.trendUp?'confluence up':'confluence down'}`;
+    mTrend.textContent = sig.trendUp ? 'UP' : 'DOWN';
+    mTrend.className = 'v ' + (sig.trendUp?'trend-up':'trend-down');
+    mRsi.textContent = sig.rsi.toFixed(1);
+    mMacd.textContent = sig.hist.toFixed(5);
+  }
+
+  function renderRisk(){
+    const stake = balance * (+riskIn.value/100);
+    const cap = dailyStartBalance * (+maxLossIn.value/100);
+    stakeVal.textContent = fmtMoney(stake);
+    capVal.textContent = `${fmtMoney(dailyLoss)} / ${fmtMoney(cap)}`;
+  }
+
+  function renderLog(){
+    if(trades.length===0){
+      tradeLog.innerHTML = '<div class="empty-log">No trades yet. Start the bot to begin logging paper trades.</div>';
+      return;
+    }
+    tradeLog.innerHTML = trades.slice().reverse().slice(0,30).map(t=>`
+      <div class="log-item">
+        <div class="log-left">
+          <span class="log-tag ${t.dir.toLowerCase()}">${t.dir}</span>
+          <span class="log-time">${t.time} · ${symbolSelect.value}</span>
+        </div>
+        <div class="log-result ${t.result}">${t.result==='pending' ? 'pending' : (t.result==='win'?'+':'') + fmtMoney(t.pl)}</div>
+      </div>
+    `).join('');
+  }
+
+  function timeframeMs(){
+    const map = {'1min':60000,'5min':300000,'15min':900000};
+    return map[tfSelect.value] || 300000;
+  }
+
+  function tryResolvePending(price){
+    if(!pendingTrade) return;
+    if(Date.now() < pendingTrade.expiryAt) return;
+    const win = pendingTrade.dir==='CALL' ? price>pendingTrade.entryPrice : price<pendingTrade.entryPrice;
+    const payoutPct = +payoutIn.value/100;
+    const pl = win ? pendingTrade.stake*payoutPct : -pendingTrade.stake;
+    balance += pl;
+    dailyLoss += (pl<0 ? -pl : 0);
+    const entry = trades.find(t=>t.id===pendingTrade.id);
+    if(entry){ entry.result = win?'win':'loss'; entry.pl = pl; }
+    pendingTrade = null;
+    balanceIn.value = balance.toFixed(2);
+    renderLog(); renderRisk();
+    checkDailyCap();
+  }
+
+  function maybeOpenTrade(sig, price){
+    if(sig.dir==='WAIT') { lastDir = sig.dir; return; }
+    const dirChanged = sig.dir !== lastDir;
+    lastDir = sig.dir;
+    if(!dirChanged || pendingTrade) return;
+    const stake = balance * (+riskIn.value/100);
+    const cap = dailyStartBalance * (+maxLossIn.value/100);
+    if(dailyLoss >= cap) return;
+    const id = Date.now();
+    pendingTrade = { id, dir: sig.dir, entryPrice: price, stake, expiryAt: Date.now()+timeframeMs() };
+    trades.push({ id, dir: sig.dir, time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}), result:'pending', pl:0 });
+    renderLog();
+  }
+
+  function checkDailyCap(){
+    const cap = dailyStartBalance * (+maxLossIn.value/100);
+    if(dailyLoss >= cap && running){
+      stopBot();
+      showBanner('Daily loss cap reached — bot stopped automatically.');
+    }
+  }
+
+  async function pollOnce(){
+    const close
